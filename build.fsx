@@ -16,8 +16,6 @@ let clientPath = Path.getFullName "./src/Client"
 let clientDeployPath = Path.combine clientPath "deploy"
 let deployDir = Path.getFullName "./deploy"
 
-let release = ReleaseNotes.load "RELEASE_NOTES.md"
-
 let platformTool tool winTool =
     let tool = if Environment.isUnix then tool else winTool
     match ProcessUtils.tryFindFileOnPath tool with
@@ -29,7 +27,6 @@ let platformTool tool winTool =
             "See https://safe-stack.github.io/docs/quickstart/#install-pre-requisites for more info"
         failwith errorMsg
 
-let nodeTool = platformTool "node" "node.exe"
 let npmTool = platformTool "npm" "npm.cmd"
 let npxTool = platformTool "npx" "npx.cmd"
 let runTool cmd args workingDir =
@@ -42,8 +39,7 @@ let runTool cmd args workingDir =
     |> ignore
 
 let runDotNet cmd workingDir =
-    let result =
-        DotNet.exec (DotNet.Options.withWorkingDirectory workingDir) cmd ""
+    let result = DotNet.exec (DotNet.Options.withWorkingDirectory workingDir) cmd ""
     if result.ExitCode <> 0 then failwithf "'dotnet %s' failed in %s" cmd workingDir
 
 let openBrowser url =
@@ -61,44 +57,20 @@ Target.create "Clean" (fun _ ->
 )
 
 Target.create "InstallClient" (fun _ ->
-    printfn "Node version:"
-    runTool nodeTool "--version" clientPath
-    printfn "Npm version:"
-    runTool npmTool "--version" clientPath
     runTool npmTool "install" clientPath
 )
 
 Target.create "Build" (fun _ ->
     runDotNet "build" serverPath
-    Shell.regexReplaceInFileWithEncoding
-        "let app = \".+\""
-       ("let app = \"" + release.NugetVersion + "\"")
-        System.Text.Encoding.UTF8
-        (Path.combine clientPath "Version.fs")
     runTool npxTool "webpack-cli -p" clientPath
 )
 
 Target.create "Run" (fun _ ->
-    let server = async {
-        runDotNet "watch run" serverPath
-    }
-    let client = async {
-        runTool npxTool "webpack-dev-server" clientPath
-    }
-    let browser = async {
+    [ async { runDotNet "watch run" serverPath }
+      async { runTool npxTool "webpack-dev-server" clientPath }
+      async {
         do! Async.Sleep 5000
-        openBrowser "http://localhost:8080"
-    }
-
-    let vsCodeSession = Environment.hasEnvironVar "vsCodeSession"
-    let safeClientOnly = Environment.hasEnvironVar "safeClientOnly"
-
-    let tasks =
-        [ if not safeClientOnly then yield server
-          yield client
-          if not vsCodeSession then yield browser ]
-
-    tasks
+        openBrowser "http://localhost:8080" } ]
     |> Async.Parallel
     |> Async.RunSynchronously
     |> ignore
