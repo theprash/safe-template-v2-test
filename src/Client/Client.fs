@@ -67,9 +67,7 @@ let safeComponents =
               a [ Href "https://elmish.github.io" ] [ str "Elmish" ] ]
 
     footer [ ]
-        [ str "Version "
-          strong [] [ str Version.app ]
-          str " powered by: "
+        [ str "Powered by: "
           components ]
 
 let navBrand =
