@@ -4,6 +4,7 @@ Fable.Elmish
 Fable.Elmish.React
 Fable.Elmish.Debugger
 Fable.Elmish.HMR
-Fable.React
 Fable.FontAwesome.Free
+Fable.React
+Fable.Remoting.Client
 Fulma
