@@ -43,18 +43,18 @@ let runDotNet cmd workingDir =
     if result.ExitCode <> 0 then failwithf "'dotnet %s' failed in %s" cmd workingDir
 
 Target.create "Clean" (fun _ ->
-    [ deployDir
-      clientDeployPath ]
-    |> Shell.cleanDirs
+    [ deployDir; clientDeployPath ] |> Shell.cleanDirs
 )
 
 Target.create "InstallClient" (fun _ ->
     runTool npmTool "install" clientPath
 )
 
-Target.create "Build" (fun _ ->
-    runDotNet "build" serverPath
-    runTool npxTool "webpack-cli -p" clientPath
+Target.create "Bundle" (fun _ ->
+    let webpackDeployPath = IO.Path.Combine(deployDir, "public", "[name].[hash].js")
+
+    runDotNet (sprintf "publish -c Release -o \"%s\"" deployDir) serverPath
+    runTool npxTool (sprintf """webpack-cli -p -o "%s" """ webpackDeployPath) clientPath
 )
 
 Target.create "Run" (fun _ ->
@@ -69,11 +69,11 @@ open Fake.Core.TargetOperators
 
 "Clean"
     ==> "InstallClient"
-    ==> "Build"
+    ==> "Bundle"
 
 "Clean"
     ==> "InstallClient"
     ==> "Run"
 
-Target.runOrDefaultWithArguments "Build"
+Target.runOrDefaultWithArguments "Bundle"
 
